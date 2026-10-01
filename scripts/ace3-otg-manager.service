@@ -1,0 +1,14 @@
+[Unit]
+Description=Ace3 guarded firmware OTG role and VBUS bridge
+After=ace3-usb-debug.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/modprobe qcom_battmgr
+ExecStart=/usr/local/sbin/ace3-otg-manager
+TimeoutStopSec=5
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

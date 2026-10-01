@@ -1,0 +1,12 @@
+[Unit]
+Description=Ace3 USB network and serial debugging
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+Before=NetworkManager.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ace3-usb-debug
+RemainAfterExit=yes
+TimeoutStartSec=40
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+# Local Ace 3 payload, adapted from archlinux-sheng packaging approach.
+pkgname=firmware-oneplus-aston
+pkgver=15.0.0.860
+pkgrel=2
+pkgdesc="OnePlus Ace 3 firmware support"
+arch=('aarch64')
+license=('custom')
+
+options=('!strip' '!debug' '!lto')
+source=('payload.tar.gz')
+sha256sums=('c7f9f729c4903de0a24b3e4858a77dc11b3b6094758b4af5d46da66e48ee2280')
+package() {
+  cp -a --no-preserve=ownership "$srcdir/usr" "$pkgdir/"
+  if [[ -d "$srcdir/boot" ]]; then cp -a --no-preserve=ownership "$srcdir/boot" "$pkgdir/"; fi
+}

@@ -1,0 +1,6 @@
+# BMI260 is mounted 180 degrees around the display's normal axis.
+# Its current SPI driver has no usable IIO trigger; use direct polling.
+SUBSYSTEM=="iio", ATTR{name}=="bmi260", ENV{ACCEL_MOUNT_MATRIX}="-1,0,0;0,-1,0;0,0,1", ENV{IIO_SENSOR_PROXY_TYPE}="iio-poll-accel"
+# Ace3 uses the physical IIO sensors. SSC is unavailable and its asynchronous
+# discovery can race initial accelerometer claims in iio-sensor-proxy 3.9.
+SUBSYSTEM=="misc", KERNEL=="fastrpc-adsp*|fastrpc-sdsp*", ENV{IIO_SENSOR_PROXY_TYPE}=""

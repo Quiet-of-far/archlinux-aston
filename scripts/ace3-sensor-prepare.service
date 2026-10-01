@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare Ace3 accelerometer after firmware startup
+After=systemd-udev-trigger.service NetworkManager.service
+Before=iio-sensor-proxy.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ace3-sensor-prepare
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

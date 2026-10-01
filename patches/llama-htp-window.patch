@@ -1,0 +1,100 @@
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index 8620c6c..cbeb918 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -3389,6 +3389,17 @@ struct ggml_threadpool * ggml_threadpool_new(struct ggml_threadpool_params * tpp
+ }
+ 
+ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cplan * cplan) {
++    const char * strict_htp = getenv("ACE3_HTP_STRICT");
++    if (strict_htp && strcmp(strict_htp, "1") == 0) {
++        for (int i = 0; i < cgraph->n_nodes; ++i) {
++            const struct ggml_tensor * node = cgraph->nodes[i];
++            if (node->op != GGML_OP_NONE && node->op != GGML_OP_RESHAPE &&
++                node->op != GGML_OP_VIEW && node->op != GGML_OP_PERMUTE && node->op != GGML_OP_TRANSPOSE) {
++                GGML_LOG_ERROR("ACE3_HTP_STRICT: refused CPU operation %s (%s)\n", ggml_op_desc(node), node->name);
++                return GGML_STATUS_FAILED;
++            }
++        }
++    }
+     ggml_cpu_init();
+ 
+     GGML_ASSERT(cplan);
+diff --git a/ggml/src/ggml-hexagon/ggml-hexagon.cpp b/ggml/src/ggml-hexagon/ggml-hexagon.cpp
+index 4b91394..3adc02c 100644
+--- a/ggml/src/ggml-hexagon/ggml-hexagon.cpp
++++ b/ggml/src/ggml-hexagon/ggml-hexagon.cpp
+@@ -483,6 +483,7 @@ struct ggml_hexagon_session {
+     ggml_hexagon_opqueue* op_queue;
+ 
+     std::unordered_map<int, std::unique_ptr<ggml_hexagon_shared_buffer>> cloned_buffers;
++    std::unordered_set<ggml_hexagon_shared_buffer *> mapped_weights;
+     std::unordered_set<ggml_hexagon_session *>                           virt_peers;
+     std::unordered_set<ggml_hexagon_session *>                           phys_peers;
+ 
+@@ -649,6 +650,7 @@ struct ggml_hexagon_shared_buffer {
+     }
+ 
+     void unmap() {
++        sess->mapped_weights.erase(this);
+         if (!this->mapped) return;
+ 
+         if (!this->pinned && mem) {
+@@ -3661,6 +3663,47 @@ void ggml_hexagon_session::flush_batch(size_t min_ops) {
+ }
+ 
+ void ggml_hexagon_session::enqueue_op(const htp_opnode & node) {
++    static const size_t host_window = []() {
++        const char * value = getenv("ACE3_HTP_HOST_WINDOW_MB");
++        return value ? strtoul(value, nullptr, 10) * 1024 * 1024 : size_t(0);
++    }();
++    static const size_t large_weight_limit = []() {
++        const char * value = getenv("ACE3_HTP_HOST_LARGE_MB");
++        return (value ? strtoul(value, nullptr, 10) : 64) * 1024 * 1024;
++    }();
++    if (host_window) {
++        GGML_ASSERT(opt_ndev == 1 && mdev.count <= 1);
++        std::unordered_set<ggml_hexagon_shared_buffer *> required;
++        auto collect = [&](const ggml_tensor * t) {
++            if (t && t->buffer && ggml_backend_buffer_get_usage(t->buffer) == GGML_BACKEND_BUFFER_USAGE_WEIGHTS) {
++                auto * sbuf = static_cast<ggml_hexagon_shared_buffer *>(t->buffer->context);
++                GGML_ASSERT(sbuf->sess == this);
++                required.insert(sbuf);
++            }
++        };
++        for (auto * t : node.get_inputs())  collect(t);
++        for (auto * t : node.get_outputs()) collect(t);
++        size_t needed = 0;
++        bool large_new_weight = false;
++        for (auto * sbuf : mapped_weights) needed += sbuf->size();
++        for (auto * sbuf : required) {
++            if (!sbuf->mapped) {
++                needed += sbuf->size();
++                large_new_weight |= sbuf->size() > large_weight_limit;
++            }
++        }
++        if (needed > host_window || large_new_weight) {
++            // Drain pending DSP work before removing host IOMMU mappings.
++            flush_sync(true);
++            const auto old_weights = mapped_weights;
++            for (auto * sbuf : old_weights) {
++                if (!required.count(sbuf) && !sbuf->pinned) sbuf->unmap();
++            }
++        }
++        size_t required_size = 0;
++        for (auto * sbuf : required) required_size += sbuf->size();
++        GGML_ASSERT(required_size <= host_window);
++    }
+     auto clone_tensor_buffer = [this](const ggml_tensor * t) {
+         auto sbuf = this->mmap_tensor(t);
+         if (!sbuf) return;
+@@ -3942,6 +3985,9 @@ ggml_hexagon_shared_buffer * ggml_hexagon_session::mmap_tensor(const ggml_tensor
+         const bool extended  = opt_dma64 && is_weight;
+         sbuf->mmap(extended);
+     }
++    if (ggml_backend_buffer_get_usage(t->buffer) == GGML_BACKEND_BUFFER_USAGE_WEIGHTS) {
++        sbuf->sess->mapped_weights.insert(sbuf);
++    }
+     return sbuf;
+ }
+ 

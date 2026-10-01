@@ -1,0 +1,19 @@
+#!/bin/sh
+set -u
+base=/var/log/ace3-kernel-tests
+[ ! -d /.backing/var/lib/archlinux-aston ] || base=/.backing/var/lib/archlinux-aston/boot-debug
+out=$base/$(date +%Y%m%d-%H%M%S)
+mkdir -p "$out"
+uname -a > "$out/uname.txt"
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+ dmesg > "$out/dmesg-$n.txt"
+ cat /sys/kernel/debug/devices_deferred > "$out/deferred-$n.txt" 2>&1
+ journalctl -b --no-pager > "$out/journal-$n.txt"
+ timeout 2 systemctl --failed --no-pager > "$out/failed-$n.txt" 2>&1
+ { for p in /sys/class/power_supply/*; do echo "$p"; cat "$p/uevent"; done;
+ for w in /sys/class/watchdog/*; do echo "$w"; cat "$w"/{state,status,bootstatus,timeleft,timeout} 2>/dev/null; done;
+ for u in /sys/class/udc/*; do echo "$u"; cat "$u/state"; done;
+ for r in /sys/class/usb_role/*/role; do echo "$r"; cat "$r"; done; } > "$out/hardware-$n.txt" 2>&1
+ sync
+ sleep 2
+done

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Retry the BMI260 binding after the firmware handover has completed.
+set -euo pipefail
+modprobe spi_gpio
+modprobe bmi270_spi
+sensor=/sys/bus/spi/devices/spi0.0
+for attempt in {1..10}; do
+    if [[ -L "$sensor/driver" ]]; then
+        exit 0
+    fi
+    sleep 1
+    if [[ -d "$sensor" ]]; then
+        printf '%s' spi0.0 > /sys/bus/spi/drivers/bmi270/bind 2>/dev/null || true
+    fi
+done
+echo 'BMI260 did not bind after firmware startup' >&2
+exit 1

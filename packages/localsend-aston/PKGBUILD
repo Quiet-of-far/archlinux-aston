@@ -1,0 +1,15 @@
+# Local Ace 3 payload, adapted from archlinux-sheng packaging approach.
+pkgname=localsend-aston
+pkgver=1.17.0
+pkgrel=1
+pkgdesc="OnePlus Ace 3 localsend support"
+arch=('aarch64')
+license=('Apache-2.0')
+depends=('gtk3' 'libayatana-appindicator' 'libayatana-indicator' 'ayatana-ido')
+options=('!strip' '!debug' '!lto')
+source=('payload.tar.gz')
+sha256sums=('3d1ef5ea4682db82eb6d5a6766eb4333597aa05115ff498bac7d5b13d4a75d8f')
+package() {
+  cp -a --no-preserve=ownership "$srcdir/usr" "$pkgdir/"
+  if [[ -d "$srcdir/boot" ]]; then cp -a --no-preserve=ownership "$srcdir/boot" "$pkgdir/"; fi
+}

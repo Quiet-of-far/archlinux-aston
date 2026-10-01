@@ -1,0 +1,20 @@
+pkgname=fastrpc-aston
+pkgver=0.0.1.r1.d247519
+pkgrel=1
+pkgdesc='Qualcomm FastRPC upstream Linux interface'
+arch=('aarch64')
+license=('BSD-3-Clause-Clear')
+depends=('glibc' 'libyaml' 'libbsd' 'libmd')
+makedepends=('gcc' 'make' 'autoconf' 'automake' 'libtool' 'pkgconf')
+options=('!strip' '!debug')
+source=('source.tar.gz')
+sha256sums=('a89b8bc68927f30325836edb7553b6320fc9eb2c7c53121ec4af773f4e7367cf')
+build() {
+  cd "$srcdir"/fastrpc-main
+  ./gitcompile --prefix=/usr --sbindir=/usr/bin
+}
+package() {
+  cd "$srcdir"/fastrpc-main
+  make DESTDIR="$pkgdir" install
+  install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE.txt"
+}

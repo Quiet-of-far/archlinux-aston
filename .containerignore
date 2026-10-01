@@ -1,0 +1,4 @@
+build
+secrets
+.git
+packages/*/payload.tar.gz

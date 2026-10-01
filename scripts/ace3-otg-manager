@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Aston firmware OTG bridge with bounded VBUS leases and battery guards."""
+from pathlib import Path
+import signal,time,sys
+base=Path('/sys/class/power_supply/qcom-battmgr-usb')
+battery=Path('/sys/class/power_supply/bq28z610-0')
+role=Path('/sys/class/usb_role/a600000.usb-role-switch/role')
+control=base/'oplus/otg_power_test'
+running=True
+sourcing=False
+renew_at=0
+last_state=None
+otg_session=False
+detached_at=None
+def stop(*args):
+    global running
+    running=False
+def read(path):
+    return int(path.read_text())
+def power_off():
+    global sourcing,renew_at
+    # Also cancel a lease left by a previous process.
+    control.write_text('0\n')
+    sourcing=False
+    renew_at=0
+signal.signal(signal.SIGTERM,stop)
+signal.signal(signal.SIGINT,stop)
+try:
+    power_off()
+    while running:
+        try:
+            mode=read(base/'oplus/typec_mode')
+            online=read(base/'online')
+            capacity=read(battery/'capacity')
+            temp=read(battery/'temp')
+            current=read(battery/'current_now')
+            safe=capacity>=15 and 0<=temp<=400 and abs(current)<=1700000
+            # OEM typec_mode describes power role, not USB data role.
+            # Preserve an established dock's data role during PD negotiation.
+            if mode==1:
+                otg_session=True
+                detached_at=None
+            elif online:
+                detached_at=None
+            else:
+                if detached_at is None:
+                    detached_at=time.monotonic()
+                if time.monotonic()-detached_at>=5:
+                    otg_session=False
+            desired='host' if otg_session else 'device'
+            if role.read_text().strip()!=desired:
+                if sourcing:
+                    power_off()
+                role.write_text(desired+'\n')
+                time.sleep(.3)
+            # PD-powered docks retain host role but must not source VBUS.
+            need_source=mode==1 and online==0 and safe
+            state=(mode,online,safe)
+            if state!=last_state:
+                print(f'OTG {mode=} {online=} {safe=}',flush=True)
+                last_state=state
+            if need_source:
+                if time.monotonic()>=renew_at:
+                    control.write_text('1\n')
+                    sourcing=True
+                    renew_at=time.monotonic()+10
+            elif sourcing:
+                power_off()
+        except (OSError,ValueError) as exc:
+            print(f'OTG guard/read failure: {exc}',file=sys.stderr,flush=True)
+            power_off()
+            # Exit rather than continuing when telemetry is unavailable.
+            raise
+        time.sleep(.5)
+finally:
+    power_off()

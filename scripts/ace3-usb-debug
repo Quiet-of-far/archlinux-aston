@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+root=/sys/kernel/config/usb_gadget/ace3_debug
+[ -d /sys/kernel/config/usb_gadget ] || modprobe libcomposite
+[ -d /sys/kernel/config/usb_gadget ] || exit 1
+mkdir -p "$root"
+cd "$root"
+if [ -n "$(cat UDC)" ]; then
+ iface=$(cat functions/ncm.usb0/ifname)
+ ip addr replace 192.168.77.2/24 dev "$iface"
+ ip link set "$iface" up
+ exit 0
+fi
+echo 0x1d6b > idVendor
+echo 0x0104 > idProduct
+echo 0x0200 > bcdUSB
+mkdir -p strings/0x409
+echo ace3-arch > strings/0x409/serialnumber
+echo OnePlus > strings/0x409/manufacturer
+echo 'Ace3 Arch USB Debug' > strings/0x409/product
+mkdir -p configs/c.1/strings/0x409
+echo 'USB network and serial' > configs/c.1/strings/0x409/configuration
+echo 250 > configs/c.1/MaxPower
+mkdir -p functions/ncm.usb0 functions/acm.GS0
+echo 02:ac:e3:00:00:02 > functions/ncm.usb0/dev_addr
+echo 02:ac:e3:00:00:01 > functions/ncm.usb0/host_addr
+[ -e configs/c.1/ncm.usb0 ] || ln -s "$root/functions/ncm.usb0" configs/c.1/ncm.usb0
+[ -e configs/c.1/acm.GS0 ] || ln -s "$root/functions/acm.GS0" configs/c.1/acm.GS0
+n=0
+while [ ! -d /sys/class/udc/a600000.usb ]; do
+ n=$((n+1)); [ "$n" -lt 30 ] || exit 1
+ sleep 1
+done
+echo a600000.usb > UDC
+
+# The image intentionally leaves Ethernet unmanaged by NetworkManager.
+iface=$(cat functions/ncm.usb0/ifname)
+ip addr replace 192.168.77.2/24 dev "$iface"
+ip link set "$iface" up

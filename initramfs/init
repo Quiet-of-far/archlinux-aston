@@ -1,0 +1,44 @@
+#!/bin/busybox sh
+export PATH=/bin:/sbin
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+exec 2>/dev/kmsg
+set -x
+/usb-debug || echo 'Arch early USB setup failed' >/dev/kmsg
+cat /dev/kmsg >/dev/ttyGS0 &
+logpid=$!
+mkdir -p /host /newroot
+fail() { echo "Arch Ace3 boot: $*"; exec sh </dev/ttyGS0 >/dev/ttyGS0 2>&1; }
+i=0
+while [ ! -b /dev/sda15 ]; do
+ i=$((i+1)); [ "$i" -lt 60 ] || fail 'Ubuntu partition not found'
+ sleep 1
+done
+# Only the independent image is switched into; existing Ubuntu files are preserved.
+mount -t ext4 -o rw /dev/sda15 /host || fail 'Cannot mount backing partition'
+exec > /host/var/lib/archlinux-aston/initramfs.log 2>&1
+/save-kmsg /host/var/lib/archlinux-aston/early-kmsg.log &
+sleep 1
+[ -f /host/var/lib/archlinux-aston/rootfs.img ] || fail 'Arch image not found'
+losetup /dev/loop0 /host/var/lib/archlinux-aston/rootfs.img || fail 'Cannot attach Arch image'
+mount -t ext4 -o rw /dev/loop0 /newroot || fail 'Cannot mount Arch root'
+if [ -f /host/var/lib/archlinux-aston/boot-headless ]; then
+ ln -sf /usr/lib/systemd/system/multi-user.target /newroot/etc/systemd/system/default.target
+else
+ ln -sf /usr/lib/systemd/system/graphical.target /newroot/etc/systemd/system/default.target
+fi
+cat /ace3-boot-log > /newroot/usr/local/sbin/ace3-boot-log
+mkdir -p /newroot/etc/systemd/journald.conf.d
+cat > /newroot/etc/systemd/journald.conf.d/20-ace3-early-debug.conf <<'EOF'
+[Journal]
+ForwardToKMsg=yes
+MaxLevelKMsg=info
+EOF
+mkdir -p /newroot/.backing /newroot/dev /newroot/proc /newroot/sys
+mount -o move /host /newroot/.backing
+mount -o move /dev /newroot/dev
+mount -o move /proc /newroot/proc
+mount -o move /sys /newroot/sys
+kill "$logpid" 2>/dev/null || true
+exec switch_root /newroot /sbin/init --log-level=info --log-target=kmsg

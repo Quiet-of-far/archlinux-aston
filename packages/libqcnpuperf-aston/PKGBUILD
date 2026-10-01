@@ -1,0 +1,21 @@
+pkgname=libqcnpuperf-aston
+pkgver=1.0.r1.d35e702
+pkgrel=1
+pkgdesc='Qualcomm NPU metrics library'
+arch=('aarch64')
+license=('BSD-3-Clause-Clear')
+depends=('glibc' 'fastrpc-aston' 'ncurses')
+makedepends=('cmake' 'gcc' 'make')
+options=('!debug')
+source=('source.tar.gz')
+sha256sums=('8b378ed4ec7be3a59d9b814c3fe6ae921ca0dd30c0cc4404ded4e25ff0a4aca8')
+build() {
+  cd "$srcdir"
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib
+  cmake --build build -j4
+}
+package() {
+  cd "$srcdir"
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE.txt"
+}

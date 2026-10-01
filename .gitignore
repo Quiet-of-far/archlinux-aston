@@ -1,0 +1,18 @@
+/build/
+/secrets/
+*.img
+*.tar.gz
+*.tar.zst
+
+__pycache__/
+*.pyc
+
+# Private device configuration and generated packages must never be published.
+*.nmconnection
+*.pem
+*.key
+*_ed25519
+*_rsa
+*.pkg.tar.*
+*.deb
+*.log

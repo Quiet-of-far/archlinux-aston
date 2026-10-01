@@ -1,0 +1,15 @@
+# Local Ace 3 payload, adapted from archlinux-sheng packaging approach.
+pkgname=flclash-aston
+pkgver=0.8.84
+pkgrel=1
+pkgdesc="OnePlus Ace 3 flclash support"
+arch=('aarch64')
+license=('GPL-3.0-only')
+depends=('gtk3' 'libkeybinder3' 'libayatana-appindicator' 'libayatana-indicator' 'ayatana-ido')
+options=('!strip' '!debug' '!lto')
+source=('payload.tar.gz')
+sha256sums=('b49fda2158ac5e9c17f5538b21cfb66b0c4fe5adbb3a7c8acf42c1bf16c0e253')
+package() {
+  cp -a --no-preserve=ownership "$srcdir/usr" "$pkgdir/"
+  if [[ -d "$srcdir/boot" ]]; then cp -a --no-preserve=ownership "$srcdir/boot" "$pkgdir/"; fi
+}
