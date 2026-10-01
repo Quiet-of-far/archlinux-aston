@@ -27,8 +27,15 @@ signal.signal(signal.SIGTERM,stop)
 signal.signal(signal.SIGINT,stop)
 try:
     power_off()
+    # OEM firmware needs AP-side detection enabled after Android or a DSP reset.
+    # This does not source VBUS; the existing guarded lease controls that.
+    detection=base/'oplus/otg_detection_enable'
+    if detection.exists():
+        detection.write_text('1\n')
     while running:
         try:
+            if detection.exists() and read(base/'oplus/otg_ap_enable')==0:
+                detection.write_text('1\n')
             mode=read(base/'oplus/typec_mode')
             online=read(base/'online')
             capacity=read(battery/'capacity')
