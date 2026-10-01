@@ -3,7 +3,7 @@ set -euo pipefail
 if [[ ${ACE3_PRIVATE_MOUNT_NS:-0} != 1 ]]; then
  exec unshare --mount --propagation private env ACE3_PRIVATE_MOUNT_NS=1 bash "$0" "$@"
 fi
-[[ $(uname -m) == aarch64 ]] || { echo 'Run on the ARM64 Ubuntu phone'; exit 1; }
+[[ $(uname -m) == aarch64 ]] || { echo 'Run on an ARM64 Linux host'; exit 1; }
 staging=${1:-/var/lib/archlinux-aston/build-input}
 image=/var/lib/archlinux-aston/rootfs.img
 root=/mnt/archlinux-aston-build

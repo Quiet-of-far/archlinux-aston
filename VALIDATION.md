@@ -147,3 +147,11 @@ USB 串口备用调试入口：已启用 serial-getty@ttyGS0，使用标准登�
 #31 在用户在场时复测：标准 SDC 120 Hz、1.1136 Gbps 实际速率、单切片封包均生效，用户确认整屏花屏。该对照现在计为失败，已正常重启后 fastboot boot 恢复 #30；uname、60 Hz DRM 状态、SDDM 和串口登录服务核实正常，无启动分区刷写。
 
 #30 同步计数诊断：新增 scripts/diagnostics/display-te-readonly.py，仅以 O_RDONLY / PROT_READ 采样 INTF1 的 TE 和完成帧计数。短暂软件 Qt Quick 动画下，60/90/120 Hz 的三秒采样分别为 TE 96.663/103.324/59.331 Hz、完成帧 40.665/60.994/58.998 Hz；DRM WAIT_VBLANK 为 105.149/110.883/67.159 Hz。计数与标称模式并不相等，但 IRQ/计数可能受按需时钟、动画负载与采样窗口影响，不能将这些结果直接报告为面板物理扫描频率或根因。各模式 tearcheck 的 vsync_count 均为 56（vtotal×刷新率近似恒定），高度随模式正确变化，external TE 位开启。未写硬件寄存器；测量结束恢复 60 Hz。日志 build/kernel30-te-mode-measurement.log。120 Hz 修复仍未完成。
+
+## 256 GiB 直接分区迁移（2026-10-01）
+
+按用户要求移除手机 Ubuntu：先用 rsync -aHAXx 暂存完整 Arch 根文件系统，并对原 test 目录建立逐文件 SHA-256、类型、模式和符号链接目标清单。暂存及直接启动后的清单均完全相同：49,725 个条目、10,762,084,391 字节文件数据，含 20 个 GGUF 和 1,347 个 MC 区域文件。保留目录为 /home/ace3/test，/home/ubuntu/test 仅为兼容旧脚本的符号链接。Java 与原 llama.cpp 的版本命令实际执行成功；未启动 MC 服务端，未将本轮视为模型速度测试。
+
+#33 / 包 7.2.0-18 使用已提交 Aston 内核源码及支持直接根分区的内置 initramfs。实机根挂载为 /dev/sda15（256 GiB ext4，文件系统约 252 GiB），无 loop 设备；用户确认 KDE 桌面、触摸及自动旋转正常。系统无失败服务，GPU/EXT4 未见本轮错误。全目录校验通过后删除旧 Ubuntu 文件及旧 loop 镜像，仅保留旧内核诊断日志到 /var/log/ace3-kernel-tests/legacy-looproot。卷标为 arch-aston，保留块设为 1%；清理后约使用 33 GiB、可用约 217–218 GiB。手机启动仍仅使用 fastboot boot，不刷写启动分区。
+
+清理旧系统与镜像后再次正常重启到 bootloader，并用默认 boot-arch-aston.img 临时启动：仍为 /dev/sda15 直接根挂载、#33 / 包18、60 Hz，传感器准备和桌面服务正常，无失败服务，保留目录清单一致。确认启动不再依赖已删除的 loop 镜像或 Ubuntu 目录；根目录所有者为 root:root。

@@ -1,7 +1,7 @@
 # Local Ace 3 payload, adapted from archlinux-sheng packaging approach.
 pkgname=linux-oneplus-aston
 pkgver=7.2.0
-pkgrel=16
+pkgrel=18
 pkgdesc="OnePlus Ace 3 linux support"
 arch=('aarch64')
 license=('GPL-2.0-only')
@@ -10,7 +10,7 @@ provides=('linux' 'linux-aarch64')
 conflicts=('linux-aarch64')
 options=('!strip' '!debug' '!lto')
 source=('payload.tar.gz')
-sha256sums=('fe4d30d628abd97fe60c26e4e804ad5fe66dd7d2b14a45e7c62bc62f15d2c92e')
+sha256sums=('ab83446dc956debfae397842a67093d504ba124d793b5acd8565efd65f3a47c7')
 package() {
   cp -a --no-preserve=ownership "$srcdir/usr" "$pkgdir/"
   if [[ -d "$srcdir/boot" ]]; then cp -a --no-preserve=ownership "$srcdir/boot" "$pkgdir/"; fi

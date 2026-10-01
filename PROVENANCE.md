@@ -39,3 +39,5 @@ AA551 refresh sequences extracted from device backup stock-dtbo/entry.1, /fragme
 本机指纹协议证据：从 PJE110_15.0.0.860 当前只读 EROFS odm/vendor 取得 service_uff、libQSEEComAPI 及 uff_gx/uff_spi 分段 TA，保存到忽略的 build/stock-fingerprint-reference，带 SHA256SUMS。service_uff 动态依赖 libQSEEComAPI，导入 start_app / shutdown_app / send_cmd / send_modified_cmd；可以确认存在 legacy QSEECom 路径，但具体 G7s 的协议尚未完成验证，不套用 gfenu 命令。未拷贝标定或模板。
 
 #30 120 Hz 对照改用同一本机原厂 DTBO 的 timing@sdc_fhd_120 命令；默认 60 Hz 和可用模式保留。QSEE lookup 诊断模块本地编写，只依赖已有 SCM 查询接口。厂商 HAL 的 GNU objdump PLT 名称因 24 字节 BTI stub 显示错位，分析时已通过 .rela.plt GOT 地址解析实际调用；不可直接用显示标签推断 QSEE 参数。
+
+直接分区启动内核从已提交 Aston 源码 `9214027556c8c9a5b920a9914f42b26cab9f4171` 重新编译，释放标识 `7.2.0-sm8550-g9214027556c8`；保留已验证显示配置，仅更新内置 initramfs 的根分区选择和对应模块包。

@@ -91,8 +91,14 @@ install -m644 -o ace3 -g ace3 /root/ace3-build/scripts/kde-defaults/20-compat-co
 install -m644 -o ace3 -g ace3 /root/ace3-build/scripts/kde-defaults/30-qtquick-software.conf /home/ace3/.config/systemd/user/plasma-kwin_wayland.service.d/
 install -dm755 -o ace3 -g ace3 /home/ace3/.config/systemd/user/plasma-ksplash.service.d
 install -m644 -o ace3 -g ace3 /root/ace3-build/scripts/kde-defaults/20-compat-renderer.conf /home/ace3/.config/systemd/user/plasma-ksplash.service.d/
-# Root and backing filesystem were mounted by our loop-root initramfs.
-printf '/dev/loop0 / ext4 defaults,noatime 0 0\n' > /etc/fstab
+# The image builder defaults to loop-root; direct deployment is explicit.
+if [[ ${ACE3_ROOT_MODE:-loop} == direct ]]; then
+ printf '/dev/sda15 / ext4 defaults,noatime 0 1\n' > /etc/fstab
+ printf 'OnePlus Ace 3 direct ext4 root\n' > /etc/ace3-direct-root
+else
+ printf '/dev/loop0 / ext4 defaults,noatime 0 0\n' > /etc/fstab
+ rm -f /etc/ace3-direct-root
+fi
 systemctl enable NetworkManager sshd sddm bluetooth ace3-usb-debug ace3-boot-log ace3-sensor-prepare ace3-otg-manager serial-getty@ttyGS0.service
 systemctl set-default graphical.target
 printf 'net.ipv4.ip_forward = 0\n' > /etc/sysctl.d/50-ace3.conf

@@ -12,18 +12,25 @@ mkdir -p /host /newroot
 fail() { echo "Arch Ace3 boot: $*"; exec sh </dev/ttyGS0 >/dev/ttyGS0 2>&1; }
 i=0
 while [ ! -b /dev/sda15 ]; do
- i=$((i+1)); [ "$i" -lt 60 ] || fail 'Ubuntu partition not found'
+ i=$((i+1)); [ "$i" -lt 60 ] || fail 'Linux partition not found'
  sleep 1
 done
-# Only the independent image is switched into; existing Ubuntu files are preserved.
-mount -t ext4 -o rw /dev/sda15 /host || fail 'Cannot mount backing partition'
-exec > /host/var/lib/archlinux-aston/initramfs.log 2>&1
-/save-kmsg /host/var/lib/archlinux-aston/early-kmsg.log &
+mount -t ext4 -o rw,noatime /dev/sda15 /newroot || fail 'Cannot mount Linux partition'
+if [ -f /newroot/etc/ace3-direct-root ]; then
+ logbase=/newroot/var/log/ace3-boot
+ mkdir -p "$logbase"
+else
+ # Compatibility path for the original independent loop image.
+ mount -o move /newroot /host || fail 'Cannot move backing mount'
+ logbase=/host/var/lib/archlinux-aston
+ [ -f "$logbase/rootfs.img" ] || fail 'Arch image not found'
+ losetup /dev/loop0 "$logbase/rootfs.img" || fail 'Cannot attach Arch image'
+ mount -t ext4 -o rw /dev/loop0 /newroot || fail 'Cannot mount Arch root'
+fi
+exec > "$logbase/initramfs.log" 2>&1
+/save-kmsg "$logbase/early-kmsg.log" &
 sleep 1
-[ -f /host/var/lib/archlinux-aston/rootfs.img ] || fail 'Arch image not found'
-losetup /dev/loop0 /host/var/lib/archlinux-aston/rootfs.img || fail 'Cannot attach Arch image'
-mount -t ext4 -o rw /dev/loop0 /newroot || fail 'Cannot mount Arch root'
-if [ -f /host/var/lib/archlinux-aston/boot-headless ]; then
+if [ -f "$logbase/boot-headless" ]; then
  ln -sf /usr/lib/systemd/system/multi-user.target /newroot/etc/systemd/system/default.target
 else
  ln -sf /usr/lib/systemd/system/graphical.target /newroot/etc/systemd/system/default.target
@@ -36,7 +43,9 @@ ForwardToKMsg=yes
 MaxLevelKMsg=info
 EOF
 mkdir -p /newroot/.backing /newroot/dev /newroot/proc /newroot/sys
-mount -o move /host /newroot/.backing
+if [ "$logbase" = /host/var/lib/archlinux-aston ]; then
+ mount -o move /host /newroot/.backing
+fi
 mount -o move /dev /newroot/dev
 mount -o move /proc /newroot/proc
 mount -o move /sys /newroot/sys
